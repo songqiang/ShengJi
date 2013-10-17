@@ -23,27 +23,6 @@ class Card:
     def get_score(self):
         return 5 * (1 + int(self.number >= 10)) if self.number in [5, 10, 13] else 0
 
-def cmp_card(card1, card2, zhu_suit, zhu_number):
-    """
-    compare cards taking into accoutn of zhu
-    """
-    if zhu_suit:  # YOU ZHU
-        if card1.suit == "J":
-            return True if card1.suit != "J" else card1.number <= card2.number
-        if card2.suit == "J": return False
-
-        if card1.suit == zhu_suit:
-                return True
-            
-    else:  # WU ZHU
-        if card1.suit == "J":
-            return True if card1.suit != "J" else card1.number <= card2.number
-        else:
-            if card2.suit == "J": return False
-            if card1.number == zhu_number: return True
-            if card2.number == zhu_number: return False
-            return True if card1.suit != card2.suit else card1.number <= card2.number
-                
 class CardDeck:
     def __init__(self, n_set):
         self.cards = list([])
@@ -141,11 +120,11 @@ class Player:
                 
             if best.number != -1:
                 for card in self.hands["Z"]:
-                    if cmp_card(card, best, game.trump, game.level):
+                    if game.cmp_card(card, best):
                         best = card
-                    if cmp_card(worst, card, game.trump, game.level):
+                    if game.cmp_card(worst, card):
                         worst = card
-                if not cmp_card(last_card, best, game.trump, game.level):
+                if not game.cmp_card(last_card, best):
                     self.playedcards.append([best])
                     self.remove_card(best, game)
                 else:
@@ -160,7 +139,7 @@ class Player:
                 self.remove_card(worst, game)
         else:
             if self.hands[last_card.suit]:
-                card = self.hands[last_card.suit][-1] if not cmp_card(last_card, self.hands[last_card.suit][-1], game.trump, game.level) else self.hands[last_card.suit][0]
+                card = self.hands[last_card.suit][-1] if not game.cmp_card(last_card, self.hands[last_card.suit][-1]) else self.hands[last_card.suit][0]
                 self.playedcards.append([card])
                 self.remove_card(card, game)
             elif self.hands[game.trump]:
@@ -216,7 +195,33 @@ class Game:
                 self.players[p].receive_card(self.carddeck.get_card(), self)
         for p in self.players:
             print p
-                
+
+    def cmp_card(self, card1, card2):
+        """
+        compare cards taking into accoutn of zhu
+        """
+        if self.trump != "Z":
+            if card1.suit == "J":
+                return True if card2.suit != "J" else card1.number >= card2.number
+            if card2.suit == "J": return False
+
+            if card1.number == self.level:
+                return True if card2.level != self.level else (card1.suit == self.trump or not card2.suit == self.trump)
+            if card2.number == self.level: return False
+
+            if card1.suit == self.trump:
+                return True if card2.suit != self.trump else card1.number >= card2.number
+            if card2.suit == self.trump: return False
+
+            return True if card1.suit != card2.suit else card1.number >= card2.number
+        else:  # WU ZHU
+            if card1.suit == "J":
+                return True if card1.suit != "J" else card1.number >= card2.number
+            if card2.suit == "J": return False
+            if card1.number == self.level: return True
+            if card2.number == self.level: return False
+            return True if card1.suit != card2.suit else card1.number >= card2.number
+            
     def play_round(self):
         self.players[self.declearer].play_card_declare(self)
         self.last_player = self.declearer
@@ -230,7 +235,7 @@ class Game:
         score = self.players[winner].playedcards[-1][0].get_score()
         for p in range(self.declearer + 1, self.declearer + 4):
             score += self.players[p % 4].playedcards[-1][0].get_score()
-            if not cmp_card(self.players[winner].playedcards[-1][0], self.players[p % 4].playedcards[-1][0], self.trump, self.level):
+            if not self.cmp_card(self.players[winner].playedcards[-1][0], self.players[p % 4].playedcards[-1][0]):
                 winner = p % 4
         
         if winner % 2 == 0:
