@@ -4,12 +4,12 @@ import random
 
 class Card:
     specialvals = dict({11:"J", 12:"Q", 13:"K", 14:"A"})
-    def __init__(self, suit, number):
+    def __init__(self, suit = "NA", number = -1):
         self.suit = suit
         self.number = number
 
     def construct_from_str(self, s):
-        (self.suit, self.number) = s.spit(":")
+        (self.suit, self.number) = s.split(":")
         if self.number == "J": self.number = 11
         if self.number == "Q": self.number = 12
         if self.number == "K": self.number = 13
@@ -22,6 +22,8 @@ class Card:
                                     else Card.specialvals[self.number])
     def get_score(self):
         return 5 * (1 + int(self.number >= 10)) if self.number in [5, 10, 13] else 0
+    def __eq__(self, other): 
+        return self.__dict__ == other.__dict__
 
 class CardDeck:
     def __init__(self, n_set):
@@ -68,11 +70,12 @@ class Player:
             self.hands[card.suit].remove(card)
             
     def play_card_declare(self, game):
-        var = raw_input("Which card to play (enter to delegate to the computer): ")
+        var = raw_input("Which card to play (First play: enter to delegate): ")
         if var:
             card = Card().construct_from_str(var)
             self.playedcards.append([card])
             self.remove_card(card, game)
+            return
             
         for suit in ["H", "S", "C", "D"]:
             if game.trump != suit and self.hands[suit] \
@@ -98,7 +101,7 @@ class Player:
                 return 
         
     def play_card_follow(self, game):
-        var = raw_input("Which card to play (enter to delegate to the computer): ")
+        var = raw_input("Which card to play (enter to delegate): ")
         if var:
             card = Card().construct_from_str(var)
             self.playedcards.append([card])
