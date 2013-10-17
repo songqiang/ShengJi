@@ -73,7 +73,7 @@ class Player:
         else:
             self.hands[card.suit].remove(card)
             
-    def play_card_declare(self, game):
+    def play_card_first(self, game):
         var = raw_input("Which card to play (First play: enter to delegate): ")
         if var:
             card = Card().construct_from_str(var)
@@ -104,7 +104,131 @@ class Player:
                 del self.hands[suit][0]
                 return 
         
-    def play_card_follow(self, game):
+    def play_card_second(self, game):
+        var = raw_input("Which card to play (enter to delegate): ")
+        if var:
+            card = Card().construct_from_str(var)
+            self.playedcards.append([card])
+            self.remove_card(card, game)
+
+        last_card = game.players[game.last_player].playedcards[-1][0]
+        if last_card.suit == "J" or last_card.suit == game.trump \
+            or last_card.number == game.level:
+
+            best = Card("Z", -1)
+            worst = Card("Z", 15)
+
+            if self.hands["Z"]:
+                best = self.hands["Z"][0]
+                worst = self.hands["Z"][0]
+            elif self.hands[game.trump]:
+                best = self.hands[game.trump][0]
+                worst = self.hands[game.trump][0]
+                
+            if best.number != -1:
+                for card in self.hands["Z"]:
+                    if game.cmp_card(card, best):
+                        best = card
+                    if game.cmp_card(worst, card):
+                        worst = card
+                if not game.cmp_card(last_card, best):
+                    self.playedcards.append([best])
+                    self.remove_card(best, game)
+                else:
+                    self.playedcards.append([worst])
+                    self.remove_card(worst, game)
+            else:
+                for cards in self.hands.values():
+                    for c in cards:
+                        if worst.number > c.number:
+                            worst = c
+                self.playedcards.append([worst])
+                self.remove_card(worst, game)
+        else:
+            if self.hands[last_card.suit]:
+                card = self.hands[last_card.suit][-1] if not game.cmp_card(last_card, self.hands[last_card.suit][-1]) else self.hands[last_card.suit][0]
+                self.playedcards.append([card])
+                self.remove_card(card, game)
+            elif self.hands[game.trump]:
+                card = self.hands[game.trump][0]
+                self.playedcards.append([card])
+                self.remove_card(card, game)
+            elif self.hands["Z"]:
+                card = self.hands["Z"][0]
+                self.playedcards.append([card])
+                self.remove_card(card, game)
+            else:
+                worst = Card("Z", 15)
+                for cards in self.hands.values():
+                    for c in cards:
+                        if worst.number > c.number:
+                            worst = c
+                self.playedcards.append([worst])
+                self.remove_card(worst, game)
+
+    def play_card_third(self, game):
+        var = raw_input("Which card to play (enter to delegate): ")
+        if var:
+            card = Card().construct_from_str(var)
+            self.playedcards.append([card])
+            self.remove_card(card, game)
+
+        last_card = game.players[game.last_player].playedcards[-1][0]
+        if last_card.suit == "J" or last_card.suit == game.trump \
+            or last_card.number == game.level:
+
+            best = Card("Z", -1)
+            worst = Card("Z", 15)
+
+            if self.hands["Z"]:
+                best = self.hands["Z"][0]
+                worst = self.hands["Z"][0]
+            elif self.hands[game.trump]:
+                best = self.hands[game.trump][0]
+                worst = self.hands[game.trump][0]
+                
+            if best.number != -1:
+                for card in self.hands["Z"]:
+                    if game.cmp_card(card, best):
+                        best = card
+                    if game.cmp_card(worst, card):
+                        worst = card
+                if not game.cmp_card(last_card, best):
+                    self.playedcards.append([best])
+                    self.remove_card(best, game)
+                else:
+                    self.playedcards.append([worst])
+                    self.remove_card(worst, game)
+            else:
+                for cards in self.hands.values():
+                    for c in cards:
+                        if worst.number > c.number:
+                            worst = c
+                self.playedcards.append([worst])
+                self.remove_card(worst, game)
+        else:
+            if self.hands[last_card.suit]:
+                card = self.hands[last_card.suit][-1] if not game.cmp_card(last_card, self.hands[last_card.suit][-1]) else self.hands[last_card.suit][0]
+                self.playedcards.append([card])
+                self.remove_card(card, game)
+            elif self.hands[game.trump]:
+                card = self.hands[game.trump][0]
+                self.playedcards.append([card])
+                self.remove_card(card, game)
+            elif self.hands["Z"]:
+                card = self.hands["Z"][0]
+                self.playedcards.append([card])
+                self.remove_card(card, game)
+            else:
+                worst = Card("Z", 15)
+                for cards in self.hands.values():
+                    for c in cards:
+                        if worst.number > c.number:
+                            worst = c
+                self.playedcards.append([worst])
+                self.remove_card(worst, game)
+                
+    def play_card_fourth(self, game):
         var = raw_input("Which card to play (enter to delegate): ")
         if var:
             card = Card().construct_from_str(var)
@@ -190,7 +314,7 @@ class Game:
         self.carddeck = CardDeck(2)
         self.players = [Player() for i in range(4)]
         self.level = level
-        self.declearer = 0
+        self.dealer = 0
         self.last_player = -1
         self.trump = "Z"
         self.trump_card = None
@@ -237,17 +361,24 @@ class Game:
             return True if card1.suit != card2.suit else card1.number >= card2.number
             
     def play_round(self):
-        self.players[self.declearer].play_card_declare(self)
-        self.last_player = self.declearer
-        for p in range(self.declearer + 1, self.declearer + 4):
-            self.players[p % 4].play_card_follow(self)
-            self.last_player = p % 4
+        self.players[self.dealer].play_card_first(self)
+        self.last_player = self.dealer
+
+        self.players[(self.dealer + 1) % 4].play_card_second(self)
+        self.last_player = (self.dealer + 1) % 4
+
+        self.players[(self.dealer + 2) % 4].play_card_second(self)
+        self.last_player = (self.dealer + 2) % 4
+
+        self.players[(self.dealer + 3) % 4].play_card_second(self)
+        self.last_player = (self.dealer + 3) % 4
+        
         self.last_player = -1
             
         ## determine winner
-        winner = self.declearer
+        winner = self.dealer
         score = self.players[winner].playedcards[-1][0].get_score()
-        for p in range(self.declearer + 1, self.declearer + 4):
+        for p in range(self.dealer + 1, self.dealer + 4):
             score += self.players[p % 4].playedcards[-1][0].get_score()
             if not self.cmp_card(self.players[winner].playedcards[-1][0], self.players[p % 4].playedcards[-1][0]):
                 winner = p % 4
@@ -256,20 +387,20 @@ class Game:
             self.evenscore += score
         else:
             self.oddscore += score
-        self.declearer = winner % 4
+        self.dealer = winner % 4
 
-        print "Winner={:d}, N/S={:d}, E/W={:d}".format(self.declearer, 
+        print "Winner={:d}, N/S={:d}, E/W={:d}".format(self.dealer, 
                                                        self.oddscore,
                                                        self.evenscore) 
-        for p in range(self.declearer, self.declearer + 4):
+        for p in range(self.dealer, self.dealer + 4):
             print p%4, ":", self.players[p % 4]
-        for p in range(self.declearer, self.declearer + 4):
+        for p in range(self.dealer, self.dealer + 4):
             sys.stdout.write(str(p%4) + ": ")
             self.players[p % 4].print_played_cards()
         
 
     def play_game(self):
-        while self.players[self.declearer].hands:
+        while self.players[self.dealer].hands:
             self.play_round()
         
 
