@@ -1,5 +1,6 @@
 #! /bin/python
 
+import sys
 import random
 
 class Card:
@@ -59,6 +60,9 @@ class Player:
         if card.suit in ["S", "D", "H", "C"] and card.number != game.level: 
             self.hands[card.suit].append(card)
             self.hands[card.suit].sort(key = lambda c: c.number)
+            if len(self.hands[card.suit]) >= 6 \
+                and Card(card.suit, game.level) in self.hands["Z"]:
+                game.set_trump(Card(card.suit, game.level))
         else:
             self.hands["Z"].append(card)
             self.hands["Z"].sort(key = lambda c: c.number)
@@ -189,6 +193,7 @@ class Game:
         self.declearer = 0
         self.last_player = -1
         self.trump = "Z"
+        self.trump_card = None
         self.oddscore = 0
         self.evenscore = 0
 
@@ -196,9 +201,15 @@ class Game:
         for i in range(25):
             for p in range(4):
                 self.players[p].receive_card(self.carddeck.get_card(), self)
+        print "Level={:d}, Trump={}".format(self.level, self.trump)
         for p in self.players:
             print p
 
+    def set_trump(self, card):
+        if not self.trump_card and card.number == self.level:
+            self.trump = card.suit
+            self.trump_card = card
+        
     def cmp_card(self, card1, card2):
         """
         compare cards taking into accoutn of zhu
@@ -251,8 +262,9 @@ class Game:
                                                        self.oddscore,
                                                        self.evenscore) 
         for p in range(self.declearer, self.declearer + 4):
-            print self.players[p % 4]
+            print p%4, ":", self.players[p % 4]
         for p in range(self.declearer, self.declearer + 4):
+            sys.stdout.write(str(p%4) + ": ")
             self.players[p % 4].print_played_cards()
         
 
