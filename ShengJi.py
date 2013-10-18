@@ -26,6 +26,13 @@ class Card:
     def __eq__(self, other): 
         return self.__dict__ == other.__dict__
 
+    def __lt__(self, other): 
+        return ord(self.suit) * 100 + self.number \
+          < ord(other.suit) * 100 + other.number 
+
+    def is_pair(self, other):
+        return self == other
+
 class CardDeck:
     def __init__(self, n_set):
         self.cards = list([])
@@ -73,6 +80,64 @@ class Player:
         else:
             self.hands[card.suit].remove(card)
 
+    def has_better_card_single(self, card, game):
+        if (card.suit == game.trump or card.number == game.level): 
+            if self.hands["Z"]:
+                for c in self.hands["Z"]:
+                    if not game.cmp_card_single(card, c):
+                        return True
+        else:
+            if self.hands[card.suit] \
+              and not game.cmp_card_single(card, self.hands[card.suit][-1]):
+                return True
+        return False
+
+    def has_better_card_pair(self, cards, game):
+        if (cards[0].suit == game.trump or cards[0].number == game.level): 
+            if self.hands["Z"]:
+                for i in range(len(self.hands["Z"]) - 1):
+                    if self.hands["Z"][i].is_pair(self.hands["Z"][i+1]) and \
+                        not game.cmp_card(cards[0], self.hands["Z"][i]):
+                        return True
+        else:
+            if self.hands[cards[0].suit]: 
+                for i in range(len(self.hands[cards[0].suit]) - 1):
+                    if self.hands[cards[0].suit][i].is_pair(self.hands[cards[0].suit][i+1]) and \
+                        not game.cmp_card(cards[0], self.hands[cards[0].suit][i]):
+                        return True
+        return False
+
+    def has_better_card_tuolaji(self, cards, game):
+        if (cards[0].suit == game.trump or cards[0].number == game.level): 
+            print "NOT IMPLEMENTED YET"
+        else:
+            if self.hands[cards[0].suit]: 
+                for i in range(len(self.hands[cards[0].suit]) - 3):
+                    if game.is_tuolaji(self.hands[cards[0].suit][i:(i+4)]) and \
+                        not game.cmp_card(cards[0], self.hands[cards[0].suit][i]):
+                        return True
+        return False
+
+    def has_better_card(self, cards, game):
+        cards.sort()
+        i = 0
+        while i < len(cards):
+            if game.is_pair(cards[i:(i+2)]):
+                if game.is_tuolaji(cards[i:(i+4)]):
+                    if self.has_better_card_tuolaji(cards[i:(i+4)], game):
+                        return True
+                    else:
+                        i += 4
+                elif self.has_better_card_pair(cards[i:(i+2)], game):
+                    return True
+                else:
+                    i += 2
+            elif self.has_better_card_single(cards[i], game):
+                return True
+            else:
+                i += 1
+        return False
+                    
     def play_card(self, card, game):
         self.playedcards.append([card])
         if card.number == game.level or card.suit == "J":
@@ -133,11 +198,11 @@ class Player:
                 
             if best.number != -1:
                 for card in self.hands["Z"]:
-                    if game.cmp_card(card, best):
+                    if game.cmp_card_single(card, best):
                         best = card
-                    if game.cmp_card(worst, card):
+                    if game.cmp_card_single(worst, card):
                         worst = card
-                if not game.cmp_card(last_card, best):
+                if not game.cmp_card_single(last_card, best):
                     self.playedcards.append([best])
                     self.remove_card(best, game)
                 else:
@@ -152,7 +217,7 @@ class Player:
                 self.remove_card(worst, game)
         else:
             if self.hands[last_card.suit]:
-                card = self.hands[last_card.suit][-1] if not game.cmp_card(last_card, self.hands[last_card.suit][-1]) else self.hands[last_card.suit][0]
+                card = self.hands[last_card.suit][-1] if not game.cmp_card_single(last_card, self.hands[last_card.suit][-1]) else self.hands[last_card.suit][0]
                 self.playedcards.append([card])
                 self.remove_card(card, game)
             elif self.hands[game.trump]:
@@ -367,9 +432,11 @@ class Game:
         self.dealer = 0
         self.last_player = -1
         self.trump = "Z"
+        self.non_trumps = ["H", "S" "D", "C"] 
         self.trump_card = None
         self.oddscore = 0
         self.evenscore = 0
+        self.round = 0
 
     def deal_cards(self):
         for i in range(25):
@@ -383,35 +450,90 @@ class Game:
         if not self.trump_card and card.number == self.level:
             self.trump = card.suit
             self.trump_card = card
-        
-    def cmp_card(self, card1, card2):
+            #            if self.trump != "J": self.non_trumps.remove(self.trump)        
+
+    def is_pair(self, cards):
+        return len(cards) == 2 and cards[0] == cards[1]
+    
+    def is_tuolaji(self, cards):
+        if len(cards) != 4: return False
+        cards.sort()
+        if cards[0].suit == "J" or cards[0].number == self.level \
+            or cards[0].suit == self.trump:
+            return False ## not correct
+        else:
+            return all([cards[0].suit == c.suit for c in cards]) \
+              and cards[0].is_pair(cards[1]) and cards[2].is_pair(cards[3]) \
+              and (cards[0].number + 1 == cards[2].number if cards[0].number != self.level - 1 else cards[0].number + 2 == cards[2].number)
+             
+
+    def get_key(self, card):
+        return (card.suit == "J")*100000 + (card.number == self.level)*10000 \
+          + (card.suit == self.trump)*1000 + ord(card.suit)*10 + card.number
+                
+    def cmp_card_single(self, card1, card2):
+        return self.get_key(card1) + (card1.suit != card2.suit)*100 \
+          > self.get_key(card2)
+
+    def cmp_card_pair(self, cards1, cards2):
+        return self.get_key(cards1[0]) + (cards1[0].suit != cards2[0].suit)*100 \
+          > self.get_key(cards2[0])
+
+    def cmp_card_tuolaji(self, cards1, cards2):
+        return self.get_key(cards1[0]) + (cards1[0].suit != cards2[0].suit)*100 \
+          > self.get_key(cards2[0])
+
+    def cmp_card(self, cards1, cards2):
         """
         compare cards taking into accoutn of zhu
         """
-        if self.trump != "Z":
-            if card1.suit == "J":
-                return True if card2.suit != "J" else card1.number >= card2.number
-            if card2.suit == "J": return False
+        if len(cards1) != len(cards2): 
+            raise Exception("Cards sequences differ in length")
+        cards1.sort(key = self.get_key)
+        cards2.sort(key = self.get_key)
+        i = 0
+        if self.is_tuolaji(cards1[i:(i+4)]):
+            if self.is_tuolaji(cards2[i:(i+4)]):
+                return self.cmp_card_tuolaji(cards1[i:(i+4)], cards2[i:(i+4)])
+            else:
+                return True
+        elif self.is_pair(cards1[i:(i+2)]):
+            if self.is_pair(cards2[i:(i+2)]): 
+                return self.cmp_card_pair(cards1[i:(i+2)], cards2[i:(i+2)])
+            else:
+                return True
+        else:
+            return self.cmp_card_single(cards1[i], cards2[i])
+        
+    def validate_play_first(self):
+        ## make sure it correctly played
+        if len(self.players[self.dealer].playedcards) != self.round \
+            or self.players[self.dealer].playedcards[-1].empty():
+            return False
+        
+        self.players[self.dealer].playedcards[-1].sort( \
+            key = lambda c: ord(x.suit) * 100 + x.number)
 
-            if card1.number == self.level:
-                return True if card2.level != self.level else (card1.suit == self.trump or not card2.suit == self.trump)
-            if card2.number == self.level: return False
+        ## single card: no need to check
+        if len(self.players[self.dealer].playedcards[-1]) == 1:
+            pass
+        elif len(self.players[self.dealer].playedcards[-1]) == 2:
+            if not self.is_pair(self.players[self.dealer].playedcards[-1]):
+                for card in self.players[self.dealer].playedcards[-1]:
+                    for p in range(4):
+                        if p != self.dealer \
+                            and self.players[p].has_better_card_single(card, game):
+                            return False
+        elif len(self.players[self.dealer].playedcards[-1]) == 4:
+            pass
+        else:
+            pass 
 
-            if card1.suit == self.trump:
-                return True if card2.suit != self.trump else card1.number >= card2.number
-            if card2.suit == self.trump: return False
-
-            return True if card1.suit != card2.suit else card1.number >= card2.number
-        else:  # WU ZHU
-            if card1.suit == "J":
-                return True if card1.suit != "J" else card1.number >= card2.number
-            if card2.suit == "J": return False
-            if card1.number == self.level: return True
-            if card2.number == self.level: return False
-            return True if card1.suit != card2.suit else card1.number >= card2.number
-            
+        return True
+        
     def play_round(self):
         self.players[self.dealer].play_card_first(self)
+        self.validate_play_first()
         self.last_player = self.dealer
 
         self.players[(self.dealer + 1) % 4].play_card_second(self)
@@ -421,8 +543,6 @@ class Game:
         self.last_player = (self.dealer + 2) % 4
 
         self.players[(self.dealer + 3) % 4].play_card_second(self)
-        self.last_player = (self.dealer + 3) % 4
-        
         self.last_player = -1
             
         ## determine winner
@@ -430,7 +550,7 @@ class Game:
         score = self.players[winner].playedcards[-1][0].get_score()
         for p in range(self.dealer + 1, self.dealer + 4):
             score += self.players[p % 4].playedcards[-1][0].get_score()
-            if not self.cmp_card(self.players[winner].playedcards[-1][0], self.players[p % 4].playedcards[-1][0]):
+            if not self.cmp_card(self.players[winner].playedcards[-1], self.players[p % 4].playedcards[-1]):
                 winner = p % 4
         
         if winner % 2 == 0:
