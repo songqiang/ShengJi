@@ -43,7 +43,7 @@ class GameMaster:
             #            if self.trump != "J": self.non_trumps.remove(self.trump)        
 
     def is_pair(self, cards):
-        return len(cards) == 2 and cards[0] == cards[1]
+        return len(cards) == 2 and cards[0].is_pair(cards[1])
     
     def is_tuolaji(self, cards):
         if len(cards) != 4: return False
@@ -79,21 +79,23 @@ class GameMaster:
         """
         if len(cards1) != len(cards2): 
             raise Exception("Cards sequences differ in length")
-        cards1.sort(key = self.get_key)
-        cards2.sort(key = self.get_key)
-        i = 0
-        if self.is_tuolaji(cards1[i:(i+4)]):
-            if self.is_tuolaji(cards2[i:(i+4)]):
-                return self.cmp_card_tuolaji(cards1[i:(i+4)], cards2[i:(i+4)])
+        if not cards1 and not cards2: return True    
+        cards1.sort(key = self.get_key, reverse = True)
+        cards2.sort(key = self.get_key, reverse = True)
+        if self.is_tuolaji(cards1[0:4]):
+            if self.is_tuolaji(cards2[0:4]):
+                return self.cmp_card_tuolaji(cards1[0:4], cards2[0:4]) # cannot have the same tuolaji
             else:
                 return True
-        elif self.is_pair(cards1[i:(i+2)]):
-            if self.is_pair(cards2[i:(i+2)]): 
-                return self.cmp_card_pair(cards1[i:(i+2)], cards2[i:(i+2)])
+        elif self.is_pair(cards1[0:2]):
+            if self.is_pair(cards2[0:2]): 
+                return self.cmp_card_pair(cards1[0:2], cards2[0:2]) # cannot have same pair
             else:
                 return True
-        else:
-            return self.cmp_card_single(cards1[i], cards2[i])
+        elif cards1[0] == cards2[0]:
+            return self.cmp_card(cards1[1:], cards2[1:])
+        else:    
+            return self.cmp_card_single(cards1[0], cards2[0])
         
     def validate_play_first(self):
         ## make sure it correctly played
