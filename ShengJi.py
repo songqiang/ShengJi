@@ -139,9 +139,9 @@ class GameMaster:
             
         ## determine winner
         winner = self.dealer
-        score = self.players[winner].playedcards[-1][0].get_score()
+        score = sum([c.get_score() for c in self.players[winner].playedcards[-1]])
         for p in range(self.dealer + 1, self.dealer + 4):
-            score += self.players[p % 4].playedcards[-1][0].get_score()
+            score += sum([c.get_score() for c in self.players[p % 4].playedcards[-1]])
             if not self.cmp_card(self.players[winner].playedcards[-1], self.players[p % 4].playedcards[-1]):
                 winner = p % 4
         
@@ -149,7 +149,7 @@ class GameMaster:
             self.evenscore += score
         else:
             self.oddscore += score
-        self.dealer = winner % 4
+        self.dealer = winner
 
         print "Winner={:d}, N/S={:d}, E/W={:d}".format(self.dealer, 
                                                        self.oddscore,
